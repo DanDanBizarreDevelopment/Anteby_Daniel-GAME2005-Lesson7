@@ -17,8 +17,7 @@ StartScene::~StartScene()
 
 void StartScene::draw()
 {
-	/*m_pStartLabel->draw();
-	m_pInstructionsLabel->draw();*/
+
 
 	m_pShip->draw();
 
@@ -33,6 +32,11 @@ void StartScene::draw()
 
 void StartScene::update()
 {
+	if (m_isGravityEnabled)
+	{
+		m_move();
+	}
+
 	if (m_displayUI)
 	{
 		m_updateUI();
@@ -47,6 +51,121 @@ void StartScene::clean()
 	delete m_pShip;
 
 	removeAllChildren();
+}
+
+void StartScene::handleEvents()
+{
+	ImGuiIO& io = ImGui::GetIO();
+	int wheel = 0;
+
+	SDL_Event event;
+	if (SDL_PollEvent(&event))
+	{
+		switch (event.type)
+		{
+		case SDL_QUIT:
+			TheGame::Instance()->quit();
+			break;
+		case SDL_MOUSEMOTION:
+			m_mousePosition.x = event.motion.x;
+			m_mousePosition.y = event.motion.y;
+			break;
+		case SDL_MOUSEWHEEL:
+			wheel = event.wheel.y;
+			break;
+		case SDL_TEXTINPUT:
+			io.AddInputCharactersUTF8(event.text.text);
+			break;
+		case SDL_KEYDOWN:
+			switch (event.key.keysym.sym)
+			{
+			case SDLK_ESCAPE:
+				TheGame::Instance()->quit();
+				break;
+			case SDLK_BACKQUOTE:
+				m_displayUI = (m_displayUI) ? false : true;
+				break;
+
+
+				/************************************************************************/
+			case SDLK_w:
+				break;
+			case SDLK_s:
+				break;
+			case SDLK_a:
+				break;
+			case SDLK_d:
+				break;
+			}
+			{
+				int key = event.key.keysym.scancode;
+				IM_ASSERT(key >= 0 && key < IM_ARRAYSIZE(io.KeysDown));
+				io.KeysDown[key] = (event.type == SDL_KEYDOWN);
+				io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
+				io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
+				io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
+				io.KeySuper = ((SDL_GetModState() & KMOD_GUI) != 0);
+			}
+			break;
+		case SDL_KEYUP:
+			switch (event.key.keysym.sym)
+			{
+			case SDLK_w:
+				break;
+
+			case SDLK_s:
+				break;
+
+			case SDLK_a:
+				break;
+			case SDLK_d:
+				break;
+			}
+			{
+				int key = event.key.keysym.scancode;
+				IM_ASSERT(key >= 0 && key < IM_ARRAYSIZE(io.KeysDown));
+				io.KeysDown[key] = (event.type == SDL_KEYDOWN);
+				io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
+				io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
+				io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
+				io.KeySuper = ((SDL_GetModState() & KMOD_GUI) != 0);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	io.DeltaTime = 1.0f / 60.0f;
+	int mouseX, mouseY;
+	const int buttons = SDL_GetMouseState(&mouseX, &mouseY);
+	io.MousePos = ImVec2(static_cast<float>(mouseX), static_cast<float>(mouseY));
+	io.MouseDown[0] = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
+	io.MouseDown[1] = buttons & SDL_BUTTON(SDL_BUTTON_RIGHT);
+	io.MouseWheel = static_cast<float>(wheel);
+
+	io.DisplaySize.x = 1280;
+	io.DisplaySize.y = 720;
+
+	m_ImGuiKeyMap();
+	m_ImGuiSetStyle();
+}
+
+
+void StartScene::start()
+{
+	/*SDL_Color blue = { 0, 0, 255, 255 };
+	m_pStartLabel = new Label("START SCENE", "Dock51", 80, blue, glm::vec2(400.0f, 40.0f));
+	m_pStartLabel->setParent(this);
+	addChild(m_pStartLabel);
+
+	m_pInstructionsLabel = new Label("Press 1 to Play", "Dock51", 40, blue, glm::vec2(400.0f, 120.0f));
+	m_pInstructionsLabel->setParent(this);
+	addChild(m_pInstructionsLabel)*/
+
+	m_pShip = new Ship();
+	m_pShip->setPosition(glm::vec2(400.0f, 300.0f));
+	addChild(m_pShip);
 }
 
 void StartScene::m_ImGuiKeyMap()
@@ -129,7 +248,7 @@ void StartScene::m_updateUI()
 	ImGui::NewFrame();
 	//ImGui::ShowDemoWindow(); // use for debug purposes
 
-	std::string windowString = "Settings ";
+	std::string windowString = "Physics Settings";
 
 	ImGui::Begin(&windowString[0], NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_MenuBar);
 
@@ -165,353 +284,271 @@ void StartScene::m_updateUI()
 
 	if (m_displayAbout)
 	{
-		ImGui::Begin("About Pathfinding Simulator", &m_displayAbout, ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::Begin("About Physics. . .", &m_displayAbout, ImGuiWindowFlags_AlwaysAutoResize);
 		ImGui::Separator();
 		ImGui::Text("Authors:");
-		ImGui::Text("Tom Tsiliopoulos ");
+		ImGui::Text("Daniel Anteby");
 		ImGui::End();
 	}
 
 	/*************************************************************************************************/
-	if (ImGui::Button("Respawn Ships"))
+	if (ImGui::Button("Toggle Gravity"))
 	{
-/*		m_respawnShips();
-		m_moveAlongPath = false;*/
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::Button("Respawn Planet"))
-	{
-		//m_respawnPlanet();
-		//m_moveAlongPath = false;
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::Button("Respawn Mines"))
-	{
-		//m_respawnMines();
-		//m_moveAlongPath = false;
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::Button("Toggle Grid"))
-	{
-		//m_debugMode = (m_debugMode) ? false : true;
+		m_isGravityEnabled = (m_isGravityEnabled) ? false : true;
 	}
 
 	ImGui::SameLine();
 
 	if (ImGui::Button("Reset All"))
 	{
-		//m_resetAll();
+		m_isGravityEnabled = false;
+		m_pShip->setPosition(glm::vec2(400.0f, 300.0f));
+		m_gravity = 9.8f;
+		m_PPM = 5.0f;
+		m_Atime = 0.16667f;
+		m_angle = 45.0f;
+		m_velocity = 100.0f;
+		m_velocityX = 0.0f;
+		m_velocityY = 0.0f;
 	}
 
 	ImGui::PushItemWidth(80);
-	//if (ImGui::SliderFloat("Manhattan Factor", m_grid[0][0]->getManhanttanFactor(), 0.1f, 10.0f, "%.1f"))
+if (ImGui::SliderFloat("Gravity",&m_gravity, 0.1f, 30.0f, "%.1f"))
+{
+	
+}
+
+if (ImGui::SliderFloat("PPM", &m_PPM, 1.0f, 30.0f, "%.1f"))
+{
+
+}
+
+if (ImGui::SliderFloat("Kicking Angle", &m_angle, 0.0f, 90.0f, "%.1f"))
+{
+
+}
+
+if (ImGui::SliderFloat("Velocity", &m_velocity, 0.0f, 200.0f, "%.1f"))
+{
+
+}
+
+	//ImGui::SameLine();
+
+	//if (ImGui::Button("Respawn Planet"))
 	//{
-	//	float newFactor = *m_grid[0][0]->getManhanttanFactor();
-
-	//	for (size_t row = 0; row < m_rowSize; row++)
-	//	{
-	//		for (size_t col = 0; col < m_colSize; col++)
-	//		{
-	//			m_grid[col][row]->setManhanttanFactor(newFactor);
-	//		}
-	//	}
-	//}
-
-	ImGui::SameLine();
-
-	//if (ImGui::SliderFloat("Euclidean Factor", m_grid[0][0]->getEuclideanFactor(), 0.1f, 10.0f, "%.1f"))
-	//{
-	//	float newFactor = *m_grid[0][0]->getEuclideanFactor();
-
-	//	for (size_t row = 0; row < m_rowSize; row++)
-	//	{
-	//		for (size_t col = 0; col < m_colSize; col++)
-	//		{
-	//			m_grid[col][row]->setEuclideanFactor(newFactor);
-	//		}
-	//	}
+	//	//m_respawnPlanet();
+	//	//m_moveAlongPath = false;
 	//}
 
 	//ImGui::SameLine();
 
-	//if (ImGui::SliderFloat("Mine Factor", m_grid[0][0]->getMineFactor(), 0.1f, 10.0f, "%.1f"))
+	//if (ImGui::Button("Respawn Mines"))
 	//{
-	//	float newFactor = *m_grid[0][0]->getMineFactor();
-
-	//	for (size_t row = 0; row < m_rowSize; row++)
-	//	{
-	//		for (size_t col = 0; col < m_colSize; col++)
-	//		{
-	//			m_grid[col][row]->setMineFactor(newFactor);
-	//		}
-	//	}
+	//	//m_respawnMines();
+	//	//m_moveAlongPath = false;
 	//}
-	//ImGui::PopItemWidth();
 
-	//if (ImGui::CollapsingHeader("Ship Locations"))
+	//ImGui::SameLine();
+
+	//if (ImGui::Button("Toggle Grid"))
+	//{
+	//	//m_debugMode = (m_debugMode) ? false : true;
+	//}
+
+	//ImGui::SameLine();
+
+	//if (ImGui::Button("Reset All"))
+	//{
+	//	//m_resetAll();
+	//}
+
+	//ImGui::PushItemWidth(80);
+	////if (ImGui::SliderFloat("Manhattan Factor", m_grid[0][0]->getManhanttanFactor(), 0.1f, 10.0f, "%.1f"))
+	////{
+	////	float newFactor = *m_grid[0][0]->getManhanttanFactor();
+
+	////	for (size_t row = 0; row < m_rowSize; row++)
+	////	{
+	////		for (size_t col = 0; col < m_colSize; col++)
+	////		{
+	////			m_grid[col][row]->setManhanttanFactor(newFactor);
+	////		}
+	////	}
+	////}
+
+	//ImGui::SameLine();
+
+	////if (ImGui::SliderFloat("Euclidean Factor", m_grid[0][0]->getEuclideanFactor(), 0.1f, 10.0f, "%.1f"))
+	////{
+	////	float newFactor = *m_grid[0][0]->getEuclideanFactor();
+
+	////	for (size_t row = 0; row < m_rowSize; row++)
+	////	{
+	////		for (size_t col = 0; col < m_colSize; col++)
+	////		{
+	////			m_grid[col][row]->setEuclideanFactor(newFactor);
+	////		}
+	////	}
+	////}
+
+	////ImGui::SameLine();
+
+	////if (ImGui::SliderFloat("Mine Factor", m_grid[0][0]->getMineFactor(), 0.1f, 10.0f, "%.1f"))
+	////{
+	////	float newFactor = *m_grid[0][0]->getMineFactor();
+
+	////	for (size_t row = 0; row < m_rowSize; row++)
+	////	{
+	////		for (size_t col = 0; col < m_colSize; col++)
+	////		{
+	////			m_grid[col][row]->setMineFactor(newFactor);
+	////		}
+	////	}
+	////}
+	////ImGui::PopItemWidth();
+
+	////if (ImGui::CollapsingHeader("Ship Locations"))
+	////{
+	////	ImGui::PushItemWidth(80);
+	////	int count = 0;
+
+	////	std::string shipText;
+	////	shipText = "Ship " + count;
+	////	shipText += " Position: ";
+	////	ImGui::Text(shipText.c_str());
+	////	ImGui::SameLine();
+	////	glm::vec2 pos = m_ship.getPosition();
+	////	ImGui::InputFloat2("", &pos[0], 0, ImGuiInputTextFlags_ReadOnly);
+	////	count++;
+	////	ImGui::PopItemWidth();
+	////}
+
+	//if (ImGui::CollapsingHeader("Planet Location"))
 	//{
 	//	ImGui::PushItemWidth(80);
-	//	int count = 0;
-
-	//	std::string shipText;
-	//	shipText = "Ship " + count;
-	//	shipText += " Position: ";
-	//	ImGui::Text(shipText.c_str());
+	//	std::string planetText;
+	//	planetText = "Planet Position: ";
+	//	ImGui::Text(planetText.c_str());
 	//	ImGui::SameLine();
-	//	glm::vec2 pos = m_ship.getPosition();
-	//	ImGui::InputFloat2("", &pos[0], 0, ImGuiInputTextFlags_ReadOnly);
-	//	count++;
+	//	/*glm::vec2 pos = m_planet.getPosition();*/
+	//	//ImGui::InputFloat2("", &pos[0], 0, ImGuiInputTextFlags_ReadOnly);
 	//	ImGui::PopItemWidth();
 	//}
 
-	if (ImGui::CollapsingHeader("Planet Location"))
-	{
-		ImGui::PushItemWidth(80);
-		std::string planetText;
-		planetText = "Planet Position: ";
-		ImGui::Text(planetText.c_str());
-		ImGui::SameLine();
-		/*glm::vec2 pos = m_planet.getPosition();*/
-		//ImGui::InputFloat2("", &pos[0], 0, ImGuiInputTextFlags_ReadOnly);
-		ImGui::PopItemWidth();
-	}
-
-	if (ImGui::CollapsingHeader("Mine Locations"))
-	{
-		ImGui::PushItemWidth(80);
-		int count = 0;
-	/*	for (Mine mine : m_pMines)
-		{
-			std::string mineText;
-			mineText = "Mine " + count;
-			mineText += " Position: ";
-			ImGui::Text(mineText.c_str());
-			ImGui::SameLine();
-			glm::vec2 pos = mine.getPosition();
-			ImGui::InputFloat2("", &pos[0], 0, ImGuiInputTextFlags_ReadOnly);
-			count++;
-		}*/
-		ImGui::PopItemWidth();
-	}
-
-	ImGui::Separator();
-
-	ImGui::PushItemWidth(80);
-	//glm::vec2 targetPosition = getTargetPosition();
-	//if (ImGui::SliderFloat("Target X Position", &targetPosition.x, 0.0f, 800.0f, "%.0f"))
+	//if (ImGui::CollapsingHeader("Mine Locations"))
 	//{
-	//	setTargetPosition(targetPosition);
+	//	ImGui::PushItemWidth(80);
+	//	int count = 0;
+	//	/*	for (Mine mine : m_pMines)
+	//		{
+	//			std::string mineText;
+	//			mineText = "Mine " + count;
+	//			mineText += " Position: ";
+	//			ImGui::Text(mineText.c_str());
+	//			ImGui::SameLine();
+	//			glm::vec2 pos = mine.getPosition();
+	//			ImGui::InputFloat2("", &pos[0], 0, ImGuiInputTextFlags_ReadOnly);
+	//			count++;
+	//		}*/
+	//	ImGui::PopItemWidth();
 	//}
-	ImGui::SameLine();
-	//if (ImGui::SliderFloat("Target Y Position", &targetPosition.y, 0.0f, 600.0f, "%.0f"))
+
+	//ImGui::Separator();
+
+	//ImGui::PushItemWidth(80);
+	////glm::vec2 targetPosition = getTargetPosition();
+	////if (ImGui::SliderFloat("Target X Position", &targetPosition.x, 0.0f, 800.0f, "%.0f"))
+	////{
+	////	setTargetPosition(targetPosition);
+	////}
+	//ImGui::SameLine();
+	////if (ImGui::SliderFloat("Target Y Position", &targetPosition.y, 0.0f, 600.0f, "%.0f"))
+	////{
+	////	setTargetPosition(targetPosition);
+	////}
+	//ImGui::PopItemWidth();
+
+	//ImGui::Separator();
+
+	//if (ImGui::Button("Find Path"))
 	//{
-	//	setTargetPosition(targetPosition);
+	//	//std::cout << "**** NEW PATH ****" << std::endl;
+
+	//	//findShortestPath();
+	//	//m_moveAlongPath = false;
 	//}
-	ImGui::PopItemWidth();
 
-	ImGui::Separator();
+	//if (ImGui::CollapsingHeader("Open Tiles"))
+	//{
+	//	ImGui::PushItemWidth(80);
+	//	int count = 0;
+	//	//for (Tile* tile : m_pOpen)
+	//	//{
+	//	//	std::string tileText;
+	//	//	tileText = "Tile ";
+	//	//	tileText += std::to_string(count);
+	//	//	tileText += " Position: ";
+	//	//	ImGui::Text(tileText.c_str());
+	//	//	ImGui::SameLine();
+	//	//	glm::vec2 pos = tile->getPosition();
+	//	//	ImGui::InputFloat2("", &pos[0], 0, ImGuiInputTextFlags_ReadOnly);
+	//	//	count++;
+	//	//}
+	//	ImGui::PopItemWidth();
+	//}
 
-	if (ImGui::Button("Find Path"))
-	{
-		//std::cout << "**** NEW PATH ****" << std::endl;
+	//if (ImGui::CollapsingHeader("Closed Tiles"))
+	//{
+	//	ImGui::PushItemWidth(80);
+	//	int count = 0;
+	//	for (Tile* tile : m_pClosed)
+	//	{
+	//		std::string tileText;
+	//		tileText = "Tile ";
+	//		tileText += std::to_string(count);
+	//		tileText += " Position: ";
+	//		ImGui::Text(tileText.c_str());
+	//		ImGui::SameLine();
+	//		glm::vec2 pos = tile->getPosition();
+	//		ImGui::InputFloat2("", &pos[0], 0, ImGuiInputTextFlags_ReadOnly);
+	//		count++;
+	//	}
+	//	ImGui::PopItemWidth();
+	//}
 
-		//findShortestPath();
-		//m_moveAlongPath = false;
-	}
+	//if (!m_pOpen.empty())
+	//{
+	//	if (ImGui::Button("Move Ship Along Path"))
+	//	{
+	//		m_moveAlongPath = true;
+	//		m_pathLength = 0;
+	//	}
+	//}
 
-	if (ImGui::CollapsingHeader("Open Tiles"))
-	{
-		ImGui::PushItemWidth(80);
-		int count = 0;
-		//for (Tile* tile : m_pOpen)
-		//{
-		//	std::string tileText;
-		//	tileText = "Tile ";
-		//	tileText += std::to_string(count);
-		//	tileText += " Position: ";
-		//	ImGui::Text(tileText.c_str());
-		//	ImGui::SameLine();
-		//	glm::vec2 pos = tile->getPosition();
-		//	ImGui::InputFloat2("", &pos[0], 0, ImGuiInputTextFlags_ReadOnly);
-		//	count++;
-		//}
-		ImGui::PopItemWidth();
-	}
-
-	if (ImGui::CollapsingHeader("Closed Tiles"))
-	{
-		ImGui::PushItemWidth(80);
-		int count = 0;
-		for (Tile* tile : m_pClosed)
-		{
-			std::string tileText;
-			tileText = "Tile ";
-			tileText += std::to_string(count);
-			tileText += " Position: ";
-			ImGui::Text(tileText.c_str());
-			ImGui::SameLine();
-			glm::vec2 pos = tile->getPosition();
-			ImGui::InputFloat2("", &pos[0], 0, ImGuiInputTextFlags_ReadOnly);
-			count++;
-		}
-		ImGui::PopItemWidth();
-	}
-
-	if (!m_pOpen.empty())
-	{
-		if (ImGui::Button("Move Ship Along Path"))
-		{
-			m_moveAlongPath = true;
-			m_pathLength = 0;
-		}
-	}
-
-	// Main Window End
+	//// Main Window End
 	ImGui::End();
 }
 
-void StartScene::handleEvents()
+void StartScene::m_move()
 {
-	ImGuiIO& io = ImGui::GetIO();
-	int wheel = 0;
+	// Pf = Pi + ViT + 1/2AT^2
 
-	SDL_Event event;
-	if (SDL_PollEvent(&event))
-	{
-		switch (event.type)
-		{
-		case SDL_QUIT:
-			TheGame::Instance()->quit();
-			break;
-		case SDL_MOUSEMOTION:
-			m_mousePosition.x = event.motion.x;
-			m_mousePosition.y = event.motion.y;
-			break;
-		case SDL_MOUSEWHEEL:
-			wheel = event.wheel.y;
-			break;
-		case SDL_TEXTINPUT:
-			io.AddInputCharactersUTF8(event.text.text);
-			break;
-		case SDL_KEYDOWN:
-			switch (event.key.keysym.sym)
-			{
-			case SDLK_ESCAPE:
-				TheGame::Instance()->quit();
-				break;
-			case SDLK_BACKQUOTE:
-				m_displayUI = (m_displayUI) ? false : true;
-				break;
-			//case SDLK_f:
-			//	//std::cout << "**** NEW PATH ****" << std::endl;
+	// Pfx = Pix + Vixcos(theta)T + 1/2AxT^2
+	// Pfy = Piy + Viysin(theta)T + 1/2AyT^2
 
-			//	findShortestPath();
-			//	m_moveAlongPath = false;
-			//	break;
-			//case SDLK_g:
-			//	m_debugMode = (m_debugMode) ? false : true;
-			//	break;
-			//case SDLK_m:
-			//	m_moveAlongPath = true;
-			//	m_pathLength = 0;
-			//	break;
-			//case SDLK_p:
-			//	m_respawnPlanet();
-			//	break;
-			//case SDLK_r:
-			//	m_resetAll();
-			//	break;
+	// Velocity Components
+	m_velocityX = (m_velocity * m_PPM) * cos(m_angle * Deg2Rad);
+	m_velocityY = (m_velocity * m_PPM) * -sin(m_angle * Deg2Rad);
+	// Final Velocity Vector
+	glm::vec2 velocity_vector = (glm::vec2(m_velocityX, m_velocityY));
 
-				/************************************************************************/
-			case SDLK_w:
-				
-				break;
-			case SDLK_s:
-			
-				break;
-			case SDLK_a:
+	m_acceleration = glm::vec2(0.0f, m_gravity) * m_PPM;
 
-				break;
-			case SDLK_d:
-
-				break;
-			}
-			{
-				int key = event.key.keysym.scancode;
-				IM_ASSERT(key >= 0 && key < IM_ARRAYSIZE(io.KeysDown));
-				io.KeysDown[key] = (event.type == SDL_KEYDOWN);
-				io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
-				io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
-				io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
-				io.KeySuper = ((SDL_GetModState() & KMOD_GUI) != 0);
-			}
-			break;
-		case SDL_KEYUP:
-			switch (event.key.keysym.sym)
-			{
-			case SDLK_w:
-
-				break;
-
-			case SDLK_s:
-
-				break;
-
-			case SDLK_a:
-
-				break;
-			case SDLK_d:
-
-				break;
-			}
-			{
-				int key = event.key.keysym.scancode;
-				IM_ASSERT(key >= 0 && key < IM_ARRAYSIZE(io.KeysDown));
-				io.KeysDown[key] = (event.type == SDL_KEYDOWN);
-				io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
-				io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
-				io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
-				io.KeySuper = ((SDL_GetModState() & KMOD_GUI) != 0);
-			}
-			break;
-		default:
-			break;
-		}
-	}
-
-	io.DeltaTime = 1.0f / 60.0f;
-	int mouseX, mouseY;
-	const int buttons = SDL_GetMouseState(&mouseX, &mouseY);
-	io.MousePos = ImVec2(static_cast<float>(mouseX), static_cast<float>(mouseY));
-	io.MouseDown[0] = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
-	io.MouseDown[1] = buttons & SDL_BUTTON(SDL_BUTTON_RIGHT);
-	io.MouseWheel = static_cast<float>(wheel);
-
-	io.DisplaySize.x = 1280;
-	io.DisplaySize.y = 720;
-
-	m_ImGuiKeyMap();
-	m_ImGuiSetStyle();
-}
-
-void StartScene::start()
-{
-	/*SDL_Color blue = { 0, 0, 255, 255 };
-	m_pStartLabel = new Label("START SCENE", "Dock51", 80, blue, glm::vec2(400.0f, 40.0f));
-	m_pStartLabel->setParent(this);
-	addChild(m_pStartLabel);
-
-	m_pInstructionsLabel = new Label("Press 1 to Play", "Dock51", 40, blue, glm::vec2(400.0f, 120.0f));
-	m_pInstructionsLabel->setParent(this);
-	addChild(m_pInstructionsLabel)*/
-
-	m_pShip = new Ship();
-	m_pShip->setPosition(glm::vec2(400.0f, 300.0f));
-	addChild(m_pShip);
+	// Physics Equation
+	m_finalPosition = m_pShip->getPosition() + 
+		(velocity_vector * m_time) +
+		((m_acceleration * 0.05f) * (m_Atime * m_Atime)); 
+	m_Atime += m_time;
+	m_pShip->setPosition(m_finalPosition);
 }
